@@ -125,7 +125,7 @@ canvas { display: block; position: relative; z-index: 1; }
 <button id="blowBtn">🎂 กดเพื่อเป่าเค้ก</button>
 
 <div id="micMeter">
-  <div id="meterLabel">ความดัง</div>
+  <div id="meterLabel"></div>
   <div id="meterTrack">
     <div id="meterFill"></div>
   </div>
@@ -133,6 +133,10 @@ canvas { display: block; position: relative; z-index: 1; }
 </div>
 
 <div id="blownMsg" style="display:none"></div>
+
+<audio id="bgMusic" loop preload="auto">
+  <source src="เพลงรัก.mp3" type="audio/mpeg">
+</audio>
 
 <div id="bdayDialog" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;padding:20px;">
   <div style="background:linear-gradient(160deg,#1a0a2e,#2d0f3f,#1a0a2e);border:1px solid rgba(255,150,200,0.25);border-radius:24px;max-width:480px;width:100%;padding:28px 28px 24px;box-shadow:0 20px 60px rgba(0,0,0,0.8),0 0 40px rgba(255,100,180,0.1);font-family:'Segoe UI',sans-serif;position:relative;overflow:hidden;">
@@ -1000,6 +1004,9 @@ function tryLogin() {
     loginScreen.style.opacity = '0';
     loginScreen.style.transition = 'opacity 0.5s';
     setTimeout(() => { loginScreen.style.display = 'none'; }, 500);
+    const bgMusic = document.getElementById('bgMusic');
+    bgMusic.volume = 0.2;
+    bgMusic.play();
   } else {
     pwError.style.opacity = '1';
     pwInput.value = '';
