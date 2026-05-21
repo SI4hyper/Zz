@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cake Present</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #0a0a0a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: url('Gemi.png') center/cover no-repeat;
+  transform: scale(1.4);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+}
+canvas { display: block; position: relative; z-index: 1; }
+#blowBtn {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #ff6b9d, #ff9a3c);
+  color: #fff;
+  font-size: 15px;
+  font-family: 'Segoe UI', sans-serif;
+  font-weight: 700;
+  letter-spacing: 2px;
+  border: none;
+  border-radius: 50px;
+  padding: 14px 32px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(255, 107, 157, 0.5);
+  transition: transform 0.15s, box-shadow 0.15s;
+  z-index: 10;
+  animation: pulse 2.5s ease-in-out infinite;
+}
+#blowBtn:hover { transform: translateX(-50%) scale(1.07); box-shadow: 0 6px 28px rgba(255,107,157,0.7); }
+#blowBtn:active { transform: translateX(-50%) scale(0.96); }
+#blowBtn.listening { background: linear-gradient(135deg, #5e72e4, #11cdef); box-shadow: 0 4px 20px rgba(94,114,228,0.6); animation: none; }
+
+#micMeter {
+  position: fixed;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+}
+#micMeter.active { display: flex; }
+#meterLabel {
+  color: rgba(255,255,255,0.5);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-family: 'Segoe UI', sans-serif;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+#meterTrack {
+  width: 18px;
+  height: 220px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+#meterFill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 0%;
+  border-radius: 10px;
+  background: linear-gradient(to top, #ff6b9d, #ff9a3c, #ffe64d);
+  transition: height 0.08s ease-out;
+}
+#meterIcon {
+  color: rgba(255,255,255,0.6);
+  font-size: 20px;
+}
+#blownMsg {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 28px;
+  font-family: 'Segoe UI', sans-serif;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 2px;
+  display: none;
+  z-index: 20;
+  text-shadow: 0 0 30px rgba(255,200,100,0.8);
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+@keyframes fadeInUp { from{opacity:0;transform:translate(-50%,-60%)} to{opacity:1;transform:translate(-50%,-50%)} }
+@keyframes pulse { 0%,100%{box-shadow: 0 4px 20px rgba(255,107,157,0.4)} 50%{box-shadow: 0 4px 30px rgba(255,107,157,0.9)} }
+</style>
+</head>
+<body>
+<div id="loginScreen" style="position:fixed;inset:0;z-index:100;background:rgba(10,10,10,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:'Segoe UI',sans-serif;">
+  <div style="font-size:40px">🎂</div>
+  <div style="color:rgba(255,255,255,0.85);font-size:18px;font-weight:700;letter-spacing:2px">Enter Password</div>
+  <input id="pwInput" type="password" placeholder="••••••••" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.2);border-radius:12px;color:#fff;font-size:18px;padding:12px 24px;outline:none;text-align:center;width:260px;letter-spacing:4px;"/>
+  <button id="pwBtn" style="background:linear-gradient(135deg,#ff6b9d,#ff9a3c);color:#fff;font-size:15px;font-weight:700;letter-spacing:2px;border:none;border-radius:50px;padding:12px 36px;cursor:pointer;box-shadow:0 4px 20px rgba(255,107,157,0.5)">เข้าสู่ระบบ</button>
+  <div id="pwError" style="color:#ff6b6b;font-size:13px;opacity:0;transition:opacity 0.3s">รหัสผ่านไม่ถูกต้อง</div>
+</div>
+<button id="blowBtn">🎂 กดเพื่อเป่าเค้ก</button>
+
+<div id="micMeter">
+  <div id="meterLabel">ความดัง</div>
+  <div id="meterTrack">
+    <div id="meterFill"></div>
+  </div>
+  <div id="meterIcon">🎤</div>
+</div>
+
+<div id="blownMsg" style="display:none"></div>
+
+<div id="bdayDialog" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;padding:20px;">
+  <div style="background:linear-gradient(160deg,#1a0a2e,#2d0f3f,#1a0a2e);border:1px solid rgba(255,150,200,0.25);border-radius:24px;max-width:480px;width:100%;padding:28px 28px 24px;box-shadow:0 20px 60px rgba(0,0,0,0.8),0 0 40px rgba(255,100,180,0.1);font-family:'Segoe UI',sans-serif;position:relative;overflow:hidden;">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(255,100,180,0.08) 0%,transparent 70%);pointer-events:none"></div>
+    <div style="text-align:center;margin-bottom:18px">
+      <img src="https://media4.giphy.com/media/DG8T5OKNuqeuf5u60t/giphy.gif" alt="Happy Dance" style="width:140px;height:140px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,150,200,0.4);box-shadow:0 0 20px rgba(255,100,180,0.4)"/>
+    </div>
+    <p style="color:rgba(255,255,255,0.92);font-size:14.5px;line-height:1.85;margin:0 0 20px;text-align:center;position:relative">
+      วันนี้เมื่อ 20 ปีก่อนมีสิ่งมีชีวิตที่น่ารักที่สุดในโลกกำเนิดขึ้นมา<br><br>
+      สุขสันต์วันเกิดนะเจ้าซิว ไม่ว่าซิวจะทำอะไรปิงจะคอยผลักดันเองหากต้องการ หรือต่อให้ไม่อยากทำอะไรปิงก็จะพยายามเพื่อดูแลซิวเอง <br>
+      ซิวที่เป็นซิวน่ะ ดีที่สุดแล้ว ใช้ชีวิตให้เต็มที่นะ <br>
+      ส่วนพรไปขอในแชทเอานะคะเด็กดี 🎀
+    </p>
+    <p style="color:rgba(255,150,200,0.85);font-size:13px;text-align:right;margin:0;font-style:italic;position:relative">รักซิว &mdash;&mdash;ปิง 🩷</p>
+  </div>
+</div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// --- Setup ---
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(2, 2.5, 4.5);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.enablePan = false;
+controls.minDistance = 1;
+controls.maxDistance = 20;
+controls.target.set(0, 1.2, 0);
+controls.maxPolarAngle = Math.PI * 0.85;
+
+// --- Procedural texture helpers ---
+function createNoiseTexture(size, scale, color1, color2, opacity = 1) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = `rgba(${color1[0]},${color1[1]},${color1[2]},${opacity})`;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < size * size * 0.4; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = Math.random() * scale;
+    const c = color2;
+    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.random() * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function createBumpTexture(size, intensity) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#808080';
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 5000; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const v = Math.floor(128 + (Math.random() - 0.5) * intensity);
+    ctx.fillStyle = `rgb(${v},${v},${v})`;
+    ctx.fillRect(x, y, Math.random() * 3, Math.random() * 3);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function createFrostingDripTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+  grad.addColorStop(0, '#FFF5F5');
+  grad.addColorStop(0.5, '#FFE8E8');
+  grad.addColorStop(1, '#FFD0D0');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 2000; i++) {
+    ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.15})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return new THREE.CanvasTexture(canvas);
+}
+
+// --- Materials ---
+const spongeTex = createNoiseTexture(512, 4, [196, 156, 96], [160, 120, 60]);
+const spongeBump = createBumpTexture(512, 40);
+const spongeMat = new THREE.MeshStandardMaterial({
+  map: spongeTex,
+  bumpMap: spongeBump,
+  bumpScale: 0.015,
+  roughness: 0.85,
+  metalness: 0.0,
+  color: 0xC89850,
+});
+
+const creamTex = createNoiseTexture(512, 3, [255, 248, 240], [240, 230, 215]);
+const creamMat = new THREE.MeshStandardMaterial({
+  map: creamTex,
+  roughness: 0.35,
+  metalness: 0.0,
+  color: 0xFFF5EB,
+});
+
+const frostingTex = createFrostingDripTexture();
+const frostingMat = new THREE.MeshPhysicalMaterial({
+  map: frostingTex,
+  roughness: 0.15,
+  metalness: 0.0,
+  clearcoat: 0.8,
+  clearcoatRoughness: 0.08,
+  color: 0xFFF0F0,
+  sheen: 0.3,
+  sheenRoughness: 0.4,
+  sheenColor: new THREE.Color(0xFFE0E0),
+});
+
+const chocolateMat = new THREE.MeshPhysicalMaterial({
+  color: 0x2B0F02,
+  roughness: 0.2,
+  metalness: 0.05,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.05,
+  sheen: 0.3,
+  sheenRoughness: 0.3,
+  sheenColor: new THREE.Color(0x4A2010),
+});
+
+const strawberryMat = new THREE.MeshPhysicalMaterial({
+  color: 0xCC1030,
+  roughness: 0.25,
+  metalness: 0.0,
+  clearcoat: 0.5,
+  clearcoatRoughness: 0.1,
+  sheen: 0.2,
+  sheenColor: new THREE.Color(0xFF2040),
+});
+
+const leafMat = new THREE.MeshStandardMaterial({
+  color: 0x2D7B2D,
+  roughness: 0.6,
+  side: THREE.DoubleSide,
+});
+
+const plateMat = new THREE.MeshPhysicalMaterial({
+  color: 0xFAFAFA,
+  roughness: 0.05,
+  metalness: 0.1,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.02,
+  reflectivity: 0.9,
+});
+
+const goldMat = new THREE.MeshPhysicalMaterial({
+  color: 0xFFD700,
+  roughness: 0.2,
+  metalness: 0.9,
+  clearcoat: 0.5,
+});
+
+// --- Cake group ---
+const cakeGroup = new THREE.Group();
+
+// === PLATE ===
+const plateGroup = new THREE.Group();
+const plateBase = new THREE.Mesh(
+  new THREE.CylinderGeometry(2.4, 2.2, 0.06, 128),
+  plateMat
+);
+plateBase.position.y = 0.03;
+plateBase.castShadow = true;
+plateBase.receiveShadow = true;
+plateGroup.add(plateBase);
+
+const plateRim = new THREE.Mesh(
+  new THREE.TorusGeometry(2.3, 0.06, 32, 128),
+  plateMat
+);
+plateRim.rotation.x = Math.PI / 2;
+plateRim.position.y = 0.06;
+plateRim.castShadow = true;
+plateGroup.add(plateRim);
+
+// Gold trim on plate
+const goldTrim = new THREE.Mesh(
+  new THREE.TorusGeometry(2.15, 0.015, 16, 128),
+  goldMat
+);
+goldTrim.rotation.x = Math.PI / 2;
+goldTrim.position.y = 0.065;
+plateGroup.add(goldTrim);
+
+cakeGroup.add(plateGroup);
+
+// === SPONGE LAYERS with irregular shapes ===
+function createIrregularCylinder(radiusTop, radiusBottom, height, segments, irregularity) {
+  const geo = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments, 8);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const noise = 1 + (Math.sin(x * 5 + z * 3) * Math.cos(z * 7 + x * 2)) * irregularity;
+    pos.setX(i, x * noise);
+    pos.setZ(i, z * noise);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// Bottom sponge
+const bottomSponge = new THREE.Mesh(
+  createIrregularCylinder(1.45, 1.55, 0.55, 64, 0.02),
+  spongeMat
+);
+bottomSponge.position.y = 0.35;
+bottomSponge.castShadow = true;
+bottomSponge.receiveShadow = true;
+cakeGroup.add(bottomSponge);
+
+// Cream filling 1
+const cream1 = new THREE.Mesh(
+  createIrregularCylinder(1.48, 1.48, 0.08, 64, 0.01),
+  creamMat
+);
+cream1.position.y = 0.66;
+cream1.castShadow = true;
+cakeGroup.add(cream1);
+
+// Cream oozing out slightly
+for (let i = 0; i < 24; i++) {
+  const angle = (i / 24) * Math.PI * 2;
+  const oozeGeo = new THREE.SphereGeometry(0.04 + Math.random() * 0.03, 8, 8);
+  const ooze = new THREE.Mesh(oozeGeo, creamMat);
+  ooze.position.set(
+    Math.cos(angle) * (1.48 + Math.random() * 0.03),
+    0.66 + (Math.random() - 0.5) * 0.04,
+    Math.sin(angle) * (1.48 + Math.random() * 0.03)
+  );
+  ooze.scale.y = 0.6;
+  cakeGroup.add(ooze);
+}
+
+// Middle sponge
+const midSponge = new THREE.Mesh(
+  createIrregularCylinder(1.35, 1.45, 0.5, 64, 0.02),
+  spongeMat
+);
+midSponge.position.y = 0.95;
+midSponge.castShadow = true;
+midSponge.receiveShadow = true;
+cakeGroup.add(midSponge);
+
+// Cream filling 2
+const cream2 = new THREE.Mesh(
+  createIrregularCylinder(1.38, 1.38, 0.07, 64, 0.01),
+  creamMat
+);
+cream2.position.y = 1.23;
+cream2.castShadow = true;
+cakeGroup.add(cream2);
+
+// Top sponge
+const topSponge = new THREE.Mesh(
+  createIrregularCylinder(1.15, 1.32, 0.45, 64, 0.025),
+  spongeMat
+);
+topSponge.position.y = 1.5;
+topSponge.castShadow = true;
+topSponge.receiveShadow = true;
+cakeGroup.add(topSponge);
+
+// Chocolate cream layer on top
+const chocCreamGeo = new THREE.CylinderGeometry(1.12, 1.15, 0.06, 64);
+const chocCream = new THREE.Mesh(chocCreamGeo, chocolateMat);
+chocCream.position.y = 1.77;
+chocCream.castShadow = true;
+cakeGroup.add(chocCream);
+
+// Chocolate cream oozing out
+for (let i = 0; i < 16; i++) {
+  const angle = (i / 16) * Math.PI * 2;
+  const oozeGeo = new THREE.SphereGeometry(0.035 + Math.random() * 0.025, 8, 8);
+  const ooze = new THREE.Mesh(oozeGeo, chocolateMat);
+  ooze.position.set(
+    Math.cos(angle) * (1.13 + Math.random() * 0.03),
+    1.77 + (Math.random() - 0.5) * 0.03,
+    Math.sin(angle) * (1.13 + Math.random() * 0.03)
+  );
+  ooze.scale.y = 0.5;
+  cakeGroup.add(ooze);
+}
+
+// Chocolate curtain - continuous layer flowing down sides
+const chocCurtainSegments = 128;
+const chocCurtainPoints = [];
+for (let i = 0; i <= chocCurtainSegments; i++) {
+  const angle = (i / chocCurtainSegments) * Math.PI * 2;
+  const baseRadius = 1.12;
+  const wave = Math.sin(angle * 8) * 0.02 + Math.sin(angle * 13) * 0.01;
+  chocCurtainPoints.push(new THREE.Vector3(
+    Math.cos(angle) * (baseRadius + wave),
+    1.78,
+    Math.sin(angle) * (baseRadius + wave)
+  ));
+}
+const chocCurtainCurve = new THREE.CatmullRomCurve3(chocCurtainPoints, true);
+const chocCurtainGeo = new THREE.TubeGeometry(chocCurtainCurve, 128, 0.025, 8, true);
+const chocCurtain = new THREE.Mesh(chocCurtainGeo, chocolateMat);
+chocCurtain.castShadow = true;
+cakeGroup.add(chocCurtain);
+
+// Chocolate cream drips down the sides (realistic, reaching the plate)
+function createChocDrip(startAngle, length, thickness) {
+  const points = [];
+  const segments = 40;
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const wobble = Math.sin(t * Math.PI * 2.5 + startAngle * 4) * 0.015 * (1 - t * 0.2);
+    const bulge = Math.sin(t * Math.PI * 0.5) * thickness * 0.8;
+    const sideDrift = Math.sin(t * Math.PI * 1.8 + startAngle * 2) * 0.01 * t;
+    const taper = 1 - t * 0.3;
+    points.push(new THREE.Vector3(
+      (wobble + sideDrift) * taper,
+      -t * length,
+      bulge * taper
+    ));
+  }
+  const curve = new THREE.CatmullRomCurve3(points);
+  const tubeGeo = new THREE.TubeGeometry(curve, 44, thickness, 10, false);
+  return tubeGeo;
+}
+
+// Main thick drips - flow all the way to plate
+for (let i = 0; i < 20; i++) {
+  const angle = (i / 20) * Math.PI * 2 + (Math.random() - 0.5) * 0.1;
+  const dripLen = 1.75 + Math.random() * 0.05;
+  const thickness = 0.05 + Math.random() * 0.04;
+  const dripGeo = createChocDrip(angle, dripLen, thickness);
+  const drip = new THREE.Mesh(dripGeo, chocolateMat);
+  const radius = 1.12;
+  drip.position.set(
+    Math.cos(angle) * radius,
+    1.78,
+    Math.sin(angle) * radius
+  );
+  drip.rotation.y = -angle;
+  drip.castShadow = true;
+  cakeGroup.add(drip);
+
+  // Pool at bottom on plate
+  const poolGeo = new THREE.SphereGeometry(thickness * 3.5, 12, 12);
+  const pool = new THREE.Mesh(poolGeo, chocolateMat);
+  pool.position.set(
+    Math.cos(angle) * (radius + 0.05),
+    0.055,
+    Math.sin(angle) * (radius + 0.05)
+  );
+  pool.scale.set(3, 0.12, 3);
+  pool.castShadow = true;
+  cakeGroup.add(pool);
+}
+
+// Secondary drips
+for (let i = 0; i < 14; i++) {
+  const angle = (i / 14) * Math.PI * 2 + 0.2 + (Math.random() - 0.5) * 0.08;
+  const dripLen = 1.7 + Math.random() * 0.08;
+  const thickness = 0.035 + Math.random() * 0.025;
+  const dripGeo = createChocDrip(angle, dripLen, thickness);
+  const drip = new THREE.Mesh(dripGeo, chocolateMat);
+  const radius = 1.08;
+  drip.position.set(
+    Math.cos(angle) * radius,
+    1.78,
+    Math.sin(angle) * radius
+  );
+  drip.rotation.y = -angle;
+  drip.castShadow = true;
+  cakeGroup.add(drip);
+
+  const poolGeo = new THREE.SphereGeometry(thickness * 3, 10, 10);
+  const pool = new THREE.Mesh(poolGeo, chocolateMat);
+  pool.position.set(
+    Math.cos(angle) * (radius + 0.04),
+    0.055,
+    Math.sin(angle) * (radius + 0.04)
+  );
+  pool.scale.set(2.5, 0.1, 2.5);
+  cakeGroup.add(pool);
+}
+
+// Thin drips
+for (let i = 0; i < 12; i++) {
+  const angle = (i / 12) * Math.PI * 2 + 0.12 + (Math.random() - 0.5) * 0.06;
+  const dripLen = 1.68 + Math.random() * 0.1;
+  const thickness = 0.02 + Math.random() * 0.015;
+  const dripGeo = createChocDrip(angle, dripLen, thickness);
+  const drip = new THREE.Mesh(dripGeo, chocolateMat);
+  const radius = 1.05;
+  drip.position.set(
+    Math.cos(angle) * radius,
+    1.78,
+    Math.sin(angle) * radius
+  );
+  drip.rotation.y = -angle;
+  drip.castShadow = true;
+  cakeGroup.add(drip);
+
+  const poolGeo = new THREE.SphereGeometry(thickness * 2.5, 8, 8);
+  const pool = new THREE.Mesh(poolGeo, chocolateMat);
+  pool.position.set(
+    Math.cos(angle) * (radius + 0.03),
+    0.055,
+    Math.sin(angle) * (radius + 0.03)
+  );
+  pool.scale.set(2, 0.08, 2);
+  cakeGroup.add(pool);
+}
+
+// Chocolate cream splatter on plate
+for (let i = 0; i < 20; i++) {
+  const angle = Math.random() * Math.PI * 2;
+  const radius = 1.15 + Math.random() * 0.8;
+  const splatGeo = new THREE.SphereGeometry(0.01 + Math.random() * 0.025, 8, 8);
+  const splat = new THREE.Mesh(splatGeo, chocolateMat);
+  splat.position.set(
+    Math.cos(angle) * radius,
+    0.058,
+    Math.sin(angle) * radius
+  );
+  splat.scale.set(1 + Math.random() * 0.8, 0.08, 1 + Math.random() * 0.8);
+  splat.castShadow = true;
+  cakeGroup.add(splat);
+}
+
+// Chocolate sheets flowing down the cake sides
+for (let i = 0; i < 8; i++) {
+  const angle = (i / 8) * Math.PI * 2 + 0.2;
+  const sheetWidth = 0.12 + Math.random() * 0.1;
+  const sheetLen = 1.65 + Math.random() * 0.1;
+  
+  const sheetGeo = new THREE.PlaneGeometry(sheetWidth, sheetLen, 8, 20);
+  const pos = sheetGeo.attributes.position;
+  for (let j = 0; j < pos.count; j++) {
+    const x = pos.getX(j);
+    const y = pos.getY(j);
+    const t = (y / sheetLen) + 0.5;
+    const curve = Math.sin(t * Math.PI * 0.5) * 0.04;
+    const wave = Math.sin(x * 25 + i * 2) * 0.006;
+    pos.setZ(j, curve + wave);
+    pos.setX(j, x + Math.sin(t * Math.PI * 3) * 0.008);
+  }
+  sheetGeo.computeVertexNormals();
+  
+  const sheet = new THREE.Mesh(sheetGeo, chocolateMat);
+  sheet.position.set(
+    Math.cos(angle) * 1.13,
+    1.78 - sheetLen / 2,
+    Math.sin(angle) * 1.13
+  );
+  sheet.rotation.y = -angle + Math.PI / 2;
+  sheet.rotation.x = 0.08;
+  sheet.castShadow = true;
+  cakeGroup.add(sheet);
+}
+
+// Chocolate cream swirls on top
+for (let i = 0; i < 6; i++) {
+  const angle = (i / 6) * Math.PI * 2;
+  const swirlGeo = new THREE.SphereGeometry(0.08, 12, 12);
+  const swirl = new THREE.Mesh(swirlGeo, chocolateMat);
+  swirl.position.set(
+    Math.cos(angle) * 0.5,
+    1.79,
+    Math.sin(angle) * 0.5
+  );
+  swirl.scale.set(1.2, 0.8, 1.2);
+  swirl.castShadow = true;
+  cakeGroup.add(swirl);
+}
+
+// === DRIPS ===
+function createDrip(startAngle, length, thickness) {
+  const curve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, -length * 0.3, thickness * 0.5),
+    new THREE.Vector3(0, -length * 0.7, thickness * 0.3),
+    new THREE.Vector3(0, -length, 0),
+  ]);
+  const tubeGeo = new THREE.TubeGeometry(curve, 16, thickness, 8, false);
+  return tubeGeo;
+}
+
+for (let i = 0; i < 22; i++) {
+  const angle = (i / 22) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
+  const dripLen = 0.15 + Math.random() * 0.3;
+  const thickness = 0.025 + Math.random() * 0.02;
+  const dripGeo = createDrip(angle, dripLen, thickness);
+  const drip = new THREE.Mesh(dripGeo, frostingMat);
+  drip.position.set(
+    Math.cos(angle) * 1.1,
+    1.78,
+    Math.sin(angle) * 1.1
+  );
+  drip.rotation.y = -angle;
+  drip.castShadow = true;
+  cakeGroup.add(drip);
+}
+
+// === FROSTING ROSETTES ===
+function createRosette(x, y, z, size) {
+  const group = new THREE.Group();
+  const petals = 8;
+  for (let i = 0; i < petals; i++) {
+    const a = (i / petals) * Math.PI * 2;
+    const petalGeo = new THREE.SphereGeometry(size * 0.35, 12, 12);
+    const petal = new THREE.Mesh(petalGeo, frostingMat);
+    petal.position.set(Math.cos(a) * size * 0.5, 0, Math.sin(a) * size * 0.5);
+    petal.scale.set(1, 0.7, 1);
+    group.add(petal);
+  }
+  const centerGeo = new THREE.SphereGeometry(size * 0.3, 12, 12);
+  const center = new THREE.Mesh(centerGeo, frostingMat);
+  center.position.y = size * 0.15;
+  group.add(center);
+  group.position.set(x, y, z);
+  return group;
+}
+
+// Rosettes around the top edge
+for (let i = 0; i < 10; i++) {
+  const angle = (i / 10) * Math.PI * 2;
+  const rosette = createRosette(
+    Math.cos(angle) * 0.85,
+    1.82,
+    Math.sin(angle) * 0.85,
+    0.2
+  );
+  cakeGroup.add(rosette);
+}
+
+// === STRAWBERRIES ===
+function createStrawberry(x, y, z, scale) {
+  const group = new THREE.Group();
+
+  // Body - more realistic shape
+  const bodyGeo = new THREE.SphereGeometry(0.18, 24, 24);
+  const pos = bodyGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const py = pos.getY(i);
+    const factor = 1 + py * 0.4;
+    pos.setX(i, pos.getX(i) * factor);
+    pos.setZ(i, pos.getZ(i) * factor);
+    pos.setY(i, py * 1.15);
+  }
+  bodyGeo.computeVertexNormals();
+  const body = new THREE.Mesh(bodyGeo, strawberryMat);
+  body.castShadow = true;
+  group.add(body);
+
+  // Seeds
+  for (let i = 0; i < 20; i++) {
+    const phi = Math.random() * Math.PI * 0.8;
+    const theta = Math.random() * Math.PI * 2;
+    const r = 0.185;
+    const seedGeo = new THREE.SphereGeometry(0.008, 6, 6);
+    const seedMat = new THREE.MeshStandardMaterial({ color: 0xF5D060, roughness: 0.5 });
+    const seed = new THREE.Mesh(seedGeo, seedMat);
+    seed.position.set(
+      r * Math.sin(phi) * Math.cos(theta),
+      r * Math.cos(phi) * 1.15,
+      r * Math.sin(phi) * Math.sin(theta)
+    );
+    group.add(seed);
+  }
+
+  // Leaves (calyx)
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    const leafGeo = new THREE.PlaneGeometry(0.06, 0.12);
+    const leaf = new THREE.Mesh(leafGeo, leafMat);
+    leaf.position.set(Math.cos(a) * 0.04, 0.2, Math.sin(a) * 0.04);
+    leaf.rotation.x = -0.5;
+    leaf.rotation.y = a;
+    group.add(leaf);
+  }
+
+  group.position.set(x, y, z);
+  group.scale.setScalar(scale);
+  return group;
+}
+
+// Place strawberries
+const strawPositions = [
+  [0.6, 1.83, 0.3, 1.0],
+  [-0.4, 1.83, 0.5, 0.9],
+  [0.2, 1.83, -0.65, 1.05],
+  [-0.55, 1.83, -0.3, 0.85],
+  [0.4, 1.83, 0.5, 0.95],
+  [-0.1, 1.83, 0.7, 1.0],
+];
+strawPositions.forEach(([x, y, z, s]) => {
+  cakeGroup.add(createStrawberry(x, y, z, s));
+});
+
+// === CHOCOLATE SHAVINGS ===
+for (let i = 0; i < 50; i++) {
+  const angle = Math.random() * Math.PI * 2;
+  const radius = 1.2 + Math.random() * 0.35;
+  const shaveGeo = new THREE.BoxGeometry(
+    0.06 + Math.random() * 0.06,
+    0.015,
+    0.02 + Math.random() * 0.02
+  );
+  const shave = new THREE.Mesh(shaveGeo, chocolateMat);
+  const layerY = 0.66 + Math.random() * 0.6;
+  shave.position.set(
+    Math.cos(angle) * radius,
+    layerY,
+    Math.sin(angle) * radius
+  );
+  shave.rotation.set(
+    (Math.random() - 0.5) * 0.4,
+    angle + (Math.random() - 0.5) * 0.3,
+    (Math.random() - 0.5) * 0.5
+  );
+  shave.castShadow = true;
+  cakeGroup.add(shave);
+}
+
+// === CANDLES ===
+const candleGroup = new THREE.Group();
+
+const candleWhiteMat = new THREE.MeshPhysicalMaterial({
+  color: 0xFFFFFF,
+  roughness: 0.3,
+  metalness: 0.0,
+  clearcoat: 0.4,
+  clearcoatRoughness: 0.1,
+});
+
+const wickMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+const flameMat2 = new THREE.MeshBasicMaterial({ color: 0xFFAA00 });
+const innerFlameMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+const glowMat2 = new THREE.MeshBasicMaterial({ color: 0xFFCC44, transparent: true, opacity: 0.25 });
+
+const flames = [];
+const innerFlames = [];
+const glows = [];
+
+function createCandle(x, y, z, rotX, rotZ) {
+  const group = new THREE.Group();
+
+  // Candle body
+  const bodyGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.25, 16);
+  const body = new THREE.Mesh(bodyGeo, candleWhiteMat);
+  body.position.y = 0.125;
+  body.castShadow = true;
+  group.add(body);
+
+  // Wick
+  const wickGeo = new THREE.CylinderGeometry(0.003, 0.003, 0.04, 8);
+  const wick = new THREE.Mesh(wickGeo, wickMat);
+  wick.position.y = 0.27;
+  group.add(wick);
+
+  // Flame
+  const flameGeo = new THREE.SphereGeometry(0.025, 12, 12);
+  const flame = new THREE.Mesh(flameGeo, flameMat2);
+  flame.position.y = 0.31;
+  flame.scale.set(1, 1.8, 1);
+  flames.push(flame);
+  group.add(flame);
+
+  // Inner flame
+  const innerGeo = new THREE.SphereGeometry(0.01, 8, 8);
+  const inner = new THREE.Mesh(innerGeo, innerFlameMat);
+  inner.position.y = 0.3;
+  inner.scale.set(1, 1.5, 1);
+  innerFlames.push(inner);
+  group.add(inner);
+
+  // Glow
+  const glowGeo = new THREE.SphereGeometry(0.06, 12, 12);
+  const glow = new THREE.Mesh(glowGeo, glowMat2);
+  glow.position.y = 0.31;
+  glows.push(glow);
+  group.add(glow);
+
+  group.position.set(x, y, z);
+  group.rotation.x = rotX || 0;
+  group.rotation.z = rotZ || 0;
+  return group;
+}
+
+// 2 candles on top
+candleGroup.add(createCandle(-0.15, 1.78, 0));
+candleGroup.add(createCandle(0.15, 1.78, 0));
+
+// 18 candles around the sides, base embedded in cake, flame pointing outward
+for (let i = 0; i < 18; i++) {
+  const angle = (i / 18) * Math.PI * 2;
+  const cakeRadius = 1.38;
+  const x = Math.cos(angle) * cakeRadius;
+  const z = Math.sin(angle) * cakeRadius;
+  const y = 0.65 + Math.sin(angle * 4) * 0.2;
+  const candle = createCandle(x, y, z, 0, 0);
+  candle.rotation.y = -angle;
+  candle.rotation.z = -Math.PI / 2;
+  candleGroup.add(candle);
+}
+
+// Single flame light
+const flameLight = new THREE.PointLight(0xFF9900, 4, 8, 2);
+flameLight.position.set(0, 1.5, 0);
+flameLight.castShadow = true;
+candleGroup.add(flameLight);
+
+cakeGroup.add(candleGroup);
+
+// === LIGHTING ===
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+scene.add(ambientLight);
+
+const keyLight = new THREE.DirectionalLight(0xFFF5E0, 3);
+keyLight.position.set(4, 6, 3);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.near = 0.5;
+keyLight.shadow.camera.far = 20;
+keyLight.shadow.camera.left = -4;
+keyLight.shadow.camera.right = 4;
+keyLight.shadow.camera.top = 4;
+keyLight.shadow.camera.bottom = -4;
+keyLight.shadow.bias = -0.001;
+keyLight.shadow.radius = 4;
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xC0C8FF, 0.8);
+fillLight.position.set(-3, 3, -2);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xFFE0C0, 1.5);
+rimLight.position.set(-2, 4, 4);
+scene.add(rimLight);
+
+const bottomFill = new THREE.PointLight(0x404060, 0.5, 8);
+bottomFill.position.set(0, -1, 2);
+scene.add(bottomFill);
+
+scene.add(cakeGroup);
+
+// === FLOATING PARTICLES ===
+const particleCount = 80;
+const particleGeo = new THREE.BufferGeometry();
+const particlePositions = new Float32Array(particleCount * 3);
+const particleSizes = new Float32Array(particleCount);
+for (let i = 0; i < particleCount; i++) {
+  particlePositions[i * 3] = (Math.random() - 0.5) * 8;
+  particlePositions[i * 3 + 1] = Math.random() * 6;
+  particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 8;
+  particleSizes[i] = Math.random() * 3 + 1;
+}
+particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+particleGeo.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
+
+const particleMat = new THREE.PointsMaterial({
+  color: 0xFFDD88,
+  size: 0.03,
+  transparent: true,
+  opacity: 0.4,
+  sizeAttenuation: true,
+});
+const particles = new THREE.Points(particleGeo, particleMat);
+scene.add(particles);
+
+// === ANIMATION ===
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  // Flame flicker
+  const flicker = Math.sin(t * 15) * 0.15 + Math.sin(t * 23) * 0.1;
+  flames.forEach((f, i) => {
+    f.scale.set(
+      1 + flicker * 0.5 + Math.sin(t * 10 + i) * 0.1,
+      1.8 + flicker + Math.sin(t * 12 + i) * 0.15,
+      1 + flicker * 0.5 + Math.sin(t * 8 + i) * 0.1
+    );
+  });
+  innerFlames.forEach((f, i) => {
+    f.scale.set(
+      1 + flicker * 0.3,
+      1.5 + flicker * 0.5,
+      1 + flicker * 0.3
+    );
+  });
+  glows.forEach((g, i) => {
+    g.scale.setScalar(1 + Math.sin(t * 8 + i * 0.5) * 0.2);
+    g.material.opacity = 0.2 + Math.sin(t * 10 + i * 0.3) * 0.08;
+  });
+  flameLight.intensity = 3 + Math.sin(t * 12) * 1 + Math.sin(t * 19) * 0.5;
+
+  // Particles float
+  const positions = particles.geometry.attributes.position.array;
+  for (let i = 0; i < particleCount; i++) {
+    positions[i * 3 + 1] += 0.002;
+    positions[i * 3] += Math.sin(t + i) * 0.001;
+    if (positions[i * 3 + 1] > 6) positions[i * 3 + 1] = 0;
+  }
+  particles.geometry.attributes.position.needsUpdate = true;
+  particleMat.opacity = 0.3 + Math.sin(t * 2) * 0.1;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// === RESIZE ===
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// === LOGIN ===
+const loginScreen = document.getElementById('loginScreen');
+const pwInput = document.getElementById('pwInput');
+const pwBtn = document.getElementById('pwBtn');
+const pwError = document.getElementById('pwError');
+
+function tryLogin() {
+  if (pwInput.value === '9321zxZ#22') {
+    loginScreen.style.opacity = '0';
+    loginScreen.style.transition = 'opacity 0.5s';
+    setTimeout(() => { loginScreen.style.display = 'none'; }, 500);
+  } else {
+    pwError.style.opacity = '1';
+    pwInput.value = '';
+    pwInput.style.borderColor = '#ff6b6b';
+    setTimeout(() => {
+      pwError.style.opacity = '0';
+      pwInput.style.borderColor = 'rgba(255,255,255,0.2)';
+    }, 2000);
+  }
+}
+pwBtn.addEventListener('click', tryLogin);
+pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+
+// === MIC BLOW FEATURE ===
+let audioContext = null;
+let analyser = null;
+let micStream = null;
+let blowAnimFrame = null;
+let candlesBlown = false;
+let blowLevel = 0;
+
+const blowBtn = document.getElementById('blowBtn');
+const micMeter = document.getElementById('micMeter');
+const meterFill = document.getElementById('meterFill');
+const blownMsg = document.getElementById('blownMsg');
+const bdayDialog = document.getElementById('bdayDialog');
+
+function playBirthdaySfx() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  // Sparkle arpeggio notes (Hz)
+  const notes = [523, 659, 784, 1047, 1319, 1568, 2093];
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const t = ctx.currentTime + i * 0.09;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.18, t + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    osc.start(t); osc.stop(t + 0.5);
+  });
+  // Low boom
+  const boom = ctx.createOscillator();
+  const boomGain = ctx.createGain();
+  boom.connect(boomGain); boomGain.connect(ctx.destination);
+  boom.type = 'sine';
+  boom.frequency.setValueAtTime(80, ctx.currentTime);
+  boom.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.4);
+  boomGain.gain.setValueAtTime(0.3, ctx.currentTime);
+  boomGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+  boom.start(ctx.currentTime); boom.stop(ctx.currentTime + 0.5);
+}
+
+// เพิ่ม threshold ให้ต้องเป่าแรงขึ้น
+const BLOW_THRESHOLD = 1;
+const totalCandles = flames.length;
+
+// ติดตามสถานะเทียนแต่ละต้น: true = ติด, false = ดับ
+const candleAlive = new Array(totalCandles).fill(true);
+
+function getCandleExtinguishCount(level) {
+  // คำนวณว่าควรดับกี่ต้นจากระดับความดัง
+  // เริ่มดับเมื่อ blowLevel > 0.35, ดับหมดเมื่อถึง BLOW_THRESHOLD
+  const startLevel = 0.35;
+  if (level <= startLevel) return 0;
+  const progress = (level - startLevel) / (BLOW_THRESHOLD - startLevel);
+  return Math.floor(progress * totalCandles);
+}
+
+function updateCandleStates(targetExtinguished) {
+  // ดับเทียนตามลำดับ
+  for (let i = 0; i < totalCandles; i++) {
+    const shouldBeAlive = i >= targetExtinguished;
+    if (candleAlive[i] !== shouldBeAlive) {
+      candleAlive[i] = shouldBeAlive;
+      flames[i].visible = shouldBeAlive;
+      innerFlames[i].visible = shouldBeAlive;
+      glows[i].visible = shouldBeAlive;
+    }
+  }
+  // ปรับ flameLight ตามจำนวนเทียนที่เหลือ
+  const aliveCount = candleAlive.filter(Boolean).length;
+  flameLight.intensity = (aliveCount / totalCandles) * 4;
+}
+
+function extinguishAllCandles() {
+  if (candlesBlown) return;
+  candlesBlown = true;
+  updateCandleStates(totalCandles);
+  flameLight.intensity = 0;
+  blowBtn.style.display = 'none';
+  micMeter.classList.remove('active');
+  stopMic();
+  playBirthdaySfx();
+  setTimeout(() => {
+    bdayDialog.style.display = 'flex';
+  }, 600);
+}
+
+function stopMic() {
+  if (blowAnimFrame) { cancelAnimationFrame(blowAnimFrame); blowAnimFrame = null; }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (audioContext) { audioContext.close(); audioContext = null; }
+}
+
+function startMicMonitor() {
+  const dataArray = new Uint8Array(analyser.fftSize);
+  function loop() {
+    if (!analyser) return;
+    blowAnimFrame = requestAnimationFrame(loop);
+    analyser.getByteTimeDomainData(dataArray);
+    let sum = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+      const v = (dataArray[i] - 128) / 128;
+      sum += v * v;
+    }
+    const rms = Math.sqrt(sum / dataArray.length);
+    // ปรับ smoothing ให้ตอบสนองเร็วขึ้นเมื่อเป่า แต่ลดลงช้าลงเล็กน้อย
+    if (rms * 10 > blowLevel) {
+      blowLevel = blowLevel * 0.6 + rms * 10 * 0.4;
+    } else {
+      blowLevel = blowLevel * 0.88 + rms * 10 * 0.12;
+    }
+    blowLevel = Math.min(blowLevel, 1);
+    meterFill.style.height = (blowLevel * 100) + '%';
+
+    if (!candlesBlown) {
+      const targetOut = getCandleExtinguishCount(blowLevel);
+      updateCandleStates(targetOut);
+
+      // animate เทียนที่ยังติดอยู่ให้ไหวตามลม
+      if (blowLevel > 0.15) {
+        const intensity = blowLevel;
+        flames.forEach((f, i) => {
+          if (!candleAlive[i]) return;
+          f.scale.set(
+            1 + intensity * 2 + Math.random() * 0.5,
+            Math.max(0.3, 1.8 - intensity * 2 + Math.random() * 0.4),
+            1 + intensity * 2 + Math.random() * 0.5
+          );
+        });
+      }
+
+      if (blowLevel >= BLOW_THRESHOLD) {
+        extinguishAllCandles();
+      }
+    }
+  }
+  loop();
+}
+
+blowBtn.addEventListener('click', async () => {
+  if (candlesBlown) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    micStream = stream;
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioContext.createMediaStreamSource(stream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.3;
+    source.connect(analyser);
+    blowBtn.textContent = '🎙️ เป่าเลย!';
+    blowBtn.classList.add('listening');
+    micMeter.classList.add('active');
+    startMicMonitor();
+  } catch (err) {
+    blowBtn.textContent = '❌ ไม่สามารถเข้าถึงไมค์ได้';
+    setTimeout(() => { blowBtn.textContent = '🎂 กดเพื่อเป่าเค้ก'; }, 2500);
+  }
+});
+</script>
+</body>
+</html>
